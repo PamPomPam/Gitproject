@@ -1,3 +1,29 @@
+/*
+  This file is part of Leela Chess Zero.
+  Copyright (C) 2018-2019 The LCZero Authors
+
+  Leela Chess is free software: you can redistribute it and/or modify
+  it under the terms of the GNU General Public License as published by
+  the Free Software Foundation, either version 3 of the License, or
+  (at your option) any later version.
+
+  Leela Chess is distributed in the hope that it will be useful,
+  but WITHOUT ANY WARRANTY; without even the implied warranty of
+  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+  GNU General Public License for more details.
+
+  You should have received a copy of the GNU General Public License
+  along with Leela Chess.  If not, see <http://www.gnu.org/licenses/>.
+
+  Additional permission under GNU GPL version 3 section 7
+
+  If you modify this Program, or any covered work, by linking or
+  combining it with NVIDIA Corporation's libraries from the NVIDIA CUDA
+  Toolkit and the NVIDIA CUDA Deep Neural Network library (or a
+  modified version of those libraries), containing parts covered by the
+  terms of the respective license agreement, the licensors of this
+  Program grant you additional permission to convey the resulting work.
+*/
 
 #pragma once
 
@@ -6,9 +32,7 @@
 #include <string>
 #include <vector>
 
-
-#include "extra.h"
-//#include "utils/bititer.h"
+#include "utils/bititer.h"
 
 namespace lczero {
 
@@ -25,7 +49,6 @@ class BoardSquare {
   BoardSquare(const std::string& str, bool black = false)
       : BoardSquare(black ? '8' - str[1] : str[1] - '1', str[0] - 'a') {}
   constexpr std::uint8_t as_int() const { return square_; }
-  constexpr std::uint64_t as_board() const { return 1ULL << square_; }
   void set(int row, int col) { square_ = row * 8 + col; }
 
   // 0-based, bottom to top.
@@ -141,7 +164,14 @@ class BitBoard {
   bool intersects(const BitBoard& other) const { return board_ & other.board_; }
 
   // Flips black and white side of a board.
-  void Mirror() { board_ = ReverseBytesInBytes(board_); }
+  void Mirror() {
+    board_ = (board_ & 0x00000000FFFFFFFF) << 32 |
+             (board_ & 0xFFFFFFFF00000000) >> 32;
+    board_ = (board_ & 0x0000FFFF0000FFFF) << 16 |
+             (board_ & 0xFFFF0000FFFF0000) >> 16;
+    board_ =
+        (board_ & 0x00FF00FF00FF00FF) << 8 | (board_ & 0xFF00FF00FF00FF00) >> 8;
+  }
 
   bool operator==(const BitBoard& other) const {
     return board_ == other.board_;
@@ -191,7 +221,7 @@ class BitBoard {
 
   // Returns bitboard with one bit reset.
   friend BitBoard operator-(const BitBoard& a, const BoardSquare& b) {
-    return {a.board_ & ~b.as_board()};
+    return {a.board_ & ~(1ULL << b.as_int())};
   }
 
   // Returns difference (bitwise AND-NOT) of two boards.
@@ -230,12 +260,10 @@ class Move {
   uint16_t as_packed_int() const;
 
   // 0 .. 1857, to use in neural networks.
-  // Transform is a bit field which describes a transform to be applied to the
-  // the move before converting it to an index.
-  uint16_t as_nn_index(int transform) const;
+  uint16_t as_nn_index() const;
 
   explicit operator bool() const { return data_ != 0; }
-  bool operator==(const Move& other) const { return data_ == other.data_; }
+  bool operator==(const Move& other) { return data_ == other.data_; }
 
   void Mirror() { data_ ^= 0b111000111000; }
 
