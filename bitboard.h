@@ -32,7 +32,8 @@
 #include <string>
 #include <vector>
 
-#include "utils/bititer.h"
+#include <extra.h>
+//#include "utils/bititer.h"
 
 namespace lczero {
 
